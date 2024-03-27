@@ -1,10 +1,8 @@
 #![allow(dead_code)]
-
-struct CdiFile {}
-
-struct CdiSector {}
-
-struct CdiCodingInfo {}
+pub mod cdi_file;
+pub mod cdi_sector;
+pub mod cdi_coding_info;
+pub mod cdi_submode_info;
 
 pub enum CdiPaletteType {
     RGB,
@@ -34,7 +32,7 @@ pub enum CdiVideoType {
     Reserved,
 }
 
-pub enum SubHeaderByte {
+pub enum CdiSubHeaderByte {
     FileNumber,
     ChannelNumber,
     Submode,

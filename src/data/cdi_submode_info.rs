@@ -1,12 +1,15 @@
-struct CdiSubModeInfo {
+use crate::data::SubModeBit;
+
+#[derive(Clone, Copy)]
+pub struct CdiSubModeInfo {
     coding_info: u8,
     byte: u8,
     channel: u8,
 }
 
-impl SubModeInfo {
+impl CdiSubModeInfo {
     pub fn new(b: u8, channel: u8, coding_info: u8) -> Self {
-        SubModeInfo {
+        CdiSubModeInfo {
             byte: b,
             channel,
             coding_info,
