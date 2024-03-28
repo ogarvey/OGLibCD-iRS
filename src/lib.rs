@@ -14,8 +14,8 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use crate::data::cdi_sector::CdiSector;
-use crate::helpers::color_helpers::{read_clut_banks, write_palette};
-use crate::helpers::image_format_helpers::{decode_dyuv_image, DyuvImageConfig};
+use crate::helpers::color_helpers::{read_clut_banks, read_unindexed_palette, write_palette};
+use crate::helpers::image_format_helpers::{decode_clut7_image, decode_dyuv_image, Clut7Config, DyuvImageConfig};
 
 // test creating a cdifile
 #[test]
@@ -70,11 +70,10 @@ fn test_dyuv_image() {
         .filter(|s| s.channel_number() == 7)
         .take(45)
         .map(|f| f.get_sector_data_by_type());
-    // write the channel 7 data to a file
 
     let flattened_data: Vec<u8> = channel_7_data.clone().into_iter().flatten().collect();
 
-    let mut dyuv_image = DyuvImageConfig {
+    let dyuv_image = DyuvImageConfig {
         width: 384,
         height: 240,
         encoded_data: flattened_data,
@@ -85,4 +84,39 @@ fn test_dyuv_image() {
     let image = decode_dyuv_image(dyuv_image);
     assert_ne!(image.len(), 0);
     image.save("C:/Dev/Projects/Gaming/CD-i/FILES/dyuv_test.png").unwrap();
+}
+
+#[test]
+fn test_clut7_image() {
+    let file = CdiFile::new(
+        "C:/Dev/Projects/Gaming/CD-i/Hotel Mario/L1_av.rtf"
+            .to_string(),
+    );
+
+    let sectors: Vec<&CdiSector> = file.get_video_sectors();
+    
+    let palette_sector = file.get_data_sectors().iter().find(|s| s.sector_index() == 17).unwrap().get_sector_data_by_type();
+    // get the palette data from the first 384 bytes
+    let palette_data: Vec<u8> = palette_sector.iter().take(384).cloned().collect();
+
+    let unindexed_palette = read_unindexed_palette(&palette_data);
+    assert_eq!(unindexed_palette.len(), 128);
+
+    let clut_image_sectors: Vec<&CdiSector> = sectors.iter().filter(|s| s.coding_info().video_string()== "CLUT7").take(47).cloned().collect();
+
+    let clut_data: Vec<u8> = clut_image_sectors.iter().map(|s| s.get_sector_data_by_type()).flatten().collect();
+
+    let clut_image = Clut7Config {
+        width: 384,
+        height: 280,
+        encoded_data: clut_data,
+        clut_data: unindexed_palette,
+        use_transparency: false,
+        transparency_index: 0,
+        use_lower_indexes: true,
+    };
+
+    let image = decode_clut7_image(clut_image);
+    assert_ne!(image.len(), 0);
+    image.save("C:/Dev/Projects/Gaming/CD-i/FILES/clut7_test.png").unwrap();
 }

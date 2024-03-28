@@ -5,7 +5,7 @@ pub fn read_unindexed_palette(data: &[u8]) -> Vec<Rgba<u8>> {
     let length = data.len();
     
     for i in (0..length).step_by(3) {
-        if i + 3 < length {
+        if i + 2 <= length {
             let color = Rgba([data[i ], data[i + 1], data[i + 2], 255]);
             colors.push(color);
         }

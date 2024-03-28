@@ -18,7 +18,7 @@ pub struct DyuvImageConfig {
 pub fn decode_dyuv_image(config: DyuvImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let mut encoded_index: usize = 0;
     let mut decoded_image = ImageBuffer::new(config.width, config.height);
-    let encoded_data = &config.encoded_data[..];  
+    let encoded_data = &config.encoded_data[..];
 
     for y in 0..config.height {
         let mut prev_y = config.initial_y as u16;
@@ -30,7 +30,8 @@ pub fn decode_dyuv_image(config: DyuvImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u
                 break;
             }
 
-            let encoded_pixel = ((encoded_data[encoded_index] as u16) << 8) | (encoded_data[encoded_index + 1] as u16);
+            let encoded_pixel = ((encoded_data[encoded_index] as u16) << 8)
+                | (encoded_data[encoded_index + 1] as u16);
             let du1 = ((encoded_pixel & 0xF000) >> 12) as u8;
             let dy1 = ((encoded_pixel & 0x0F00) >> 8) as u8;
             let dv1 = ((encoded_pixel & 0x00F0) >> 4) as u8;
@@ -51,9 +52,17 @@ pub fn decode_dyuv_image(config: DyuvImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u
             let rgb1 = yuv_to_rgb(yout1.into(), uout1.into(), vout1.into());
             let rgb2 = yuv_to_rgb(yout2.into(), uout2.into(), vout2.into());
 
-            decoded_image.put_pixel(x, y, Rgba([rgb1[0] as u8, rgb1[1] as u8, rgb1[2] as u8, 0xFF]));
+            decoded_image.put_pixel(
+                x,
+                y,
+                Rgba([rgb1[0] as u8, rgb1[1] as u8, rgb1[2] as u8, 0xFF]),
+            );
             if x + 1 < config.width {
-                decoded_image.put_pixel(x + 1, y, Rgba([rgb2[0] as u8, rgb2[1] as u8, rgb2[2] as u8, 0xFF]));
+                decoded_image.put_pixel(
+                    x + 1,
+                    y,
+                    Rgba([rgb2[0] as u8, rgb2[1] as u8, rgb2[2] as u8, 0xFF]),
+                );
             }
 
             encoded_index += 2;
@@ -64,7 +73,7 @@ pub fn decode_dyuv_image(config: DyuvImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u
 }
 
 fn yuv_to_rgb(y: i32, u: i32, v: i32) -> Rgba<u8> {
-   let r = clamp((y * 256 + 351 * (v - 128)) / 256) as u8;
+    let r = clamp((y * 256 + 351 * (v - 128)) / 256) as u8;
     let g = clamp(((y * 256) - (86 * (u - 128) + 179 * (v - 128))) / 256) as u8;
     let b = clamp((y * 256 + 444 * (u - 128)) / 256) as u8;
     Rgba([r, g, b, 255])
@@ -72,4 +81,44 @@ fn yuv_to_rgb(y: i32, u: i32, v: i32) -> Rgba<u8> {
 
 fn clamp(value: i32) -> i32 {
     value.clamp(0, 255)
+}
+
+pub struct Clut7Config {
+    pub width: u32,
+    pub height: u32,
+    pub encoded_data: Vec<u8>,
+    pub clut_data: Vec<Rgba<u8>>,
+    pub use_transparency: bool,
+    pub transparency_index: u8,
+    pub use_lower_indexes: bool,
+}
+
+pub fn decode_clut7_image(config: Clut7Config) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let mut decoded_image = ImageBuffer::new(config.width, config.height);
+    let encoded_data = &config.encoded_data[..];
+    let clut_data = &config.clut_data[..];
+
+    for y in 0..config.height {
+        for x in 0..config.width {
+            let index = (y * config.width + x) as usize;
+            let clut_index = encoded_data[index] as usize;
+            let color = if clut_index < clut_data.len() {
+                if config.use_transparency
+                    && ((config.use_lower_indexes
+                        && clut_index <= config.transparency_index as usize)
+                        || (!config.use_lower_indexes
+                            && clut_index >= config.transparency_index as usize)
+                        || clut_index == 0)
+                {
+                    Rgba([0, 0, 0, 0])
+                } else {
+                    clut_data[clut_index]
+                }
+            } else {
+                clut_data[clut_index % clut_data.len()]
+            };
+            decoded_image.put_pixel(x, y, color);
+        }
+    }
+    decoded_image
 }
