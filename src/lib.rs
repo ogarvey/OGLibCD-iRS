@@ -15,6 +15,7 @@ use std::io::prelude::*;
 
 use crate::data::cdi_sector::CdiSector;
 use crate::helpers::color_helpers::{read_clut_banks, write_palette};
+use crate::helpers::image_format_helpers::{decode_dyuv_image, DyuvImageConfig};
 
 // test creating a cdifile
 #[test]
@@ -52,4 +53,36 @@ fn test_palette_parsing() {
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).unwrap();
     assert_ne!(buffer.len(), 0);
+}
+
+
+#[test]
+fn test_dyuv_image() {
+    let file = CdiFile::new(
+        "C:/Dev/Projects/Gaming/CD-i/Disc Images/Extracted/Laser Lords - Nederlands/argos.rtf"
+            .to_string(),
+    );
+
+    let sectors: Vec<&CdiSector> = file.get_data_sectors();
+    // filter sectors to channel 7
+    let channel_7_data = sectors
+        .iter()
+        .filter(|s| s.channel_number() == 7)
+        .take(45)
+        .map(|f| f.get_sector_data_by_type());
+    // write the channel 7 data to a file
+
+    let flattened_data: Vec<u8> = channel_7_data.clone().into_iter().flatten().collect();
+
+    let mut dyuv_image = DyuvImageConfig {
+        width: 384,
+        height: 240,
+        encoded_data: flattened_data,
+        initial_y: 16,
+        initial_u: 128,
+        initial_v: 128,
+    };
+    let image = decode_dyuv_image(dyuv_image);
+    assert_ne!(image.len(), 0);
+    image.save("C:/Dev/Projects/Gaming/CD-i/FILES/dyuv_test.png").unwrap();
 }
