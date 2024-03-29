@@ -3,7 +3,7 @@ use std::{fs::File, io::BufWriter, u32};
 use image::{ImageBuffer, Rgba, imageops::FilterType};
 use gif::{Frame, Encoder, Repeat};
 
-const dequantizer_array: [u8; 16] = [
+const DEQUANTIZER_ARRAY: [u8; 16] = [
     0, 1, 4, 9, 16, 27, 44, 79, 128, 177, 212, 229, 240, 247, 252, 255,
 ];
 
@@ -38,10 +38,10 @@ pub fn decode_dyuv_image(config: DyuvImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u
             let dv1 = ((encoded_pixel & 0x00F0) >> 4) as u8;
             let dy2 = (encoded_pixel & 0x000F) as u8;
 
-            let yout1 = ((prev_y + dequantizer_array[dy1 as usize] as u16) % 256) as u8;
-            let uout2 = ((prev_u + dequantizer_array[du1 as usize] as u16) % 256) as u8;
-            let vout2 = ((prev_v + dequantizer_array[dv1 as usize] as u16) % 256) as u8;
-            let yout2 = ((yout1 as u16 + dequantizer_array[dy2 as usize] as u16) % 256) as u8;
+            let yout1 = ((prev_y + DEQUANTIZER_ARRAY[dy1 as usize] as u16) % 256) as u8;
+            let uout2 = ((prev_u + DEQUANTIZER_ARRAY[du1 as usize] as u16) % 256) as u8;
+            let vout2 = ((prev_v + DEQUANTIZER_ARRAY[dv1 as usize] as u16) % 256) as u8;
+            let yout2 = ((yout1 as u16 + DEQUANTIZER_ARRAY[dy2 as usize] as u16) % 256) as u8;
 
             let uout1 = ((prev_u + uout2 as u16) / 2) as u8;
             let vout1 = ((prev_v + vout2 as u16) / 2) as u8;
@@ -190,7 +190,7 @@ pub fn decode_rle_image(config: RleImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u8>
   };
   let clut_config = Clut7Config {
     width: config.line_width as u32,
-    height: config.height as u32,
+    height: height as u32,
     encoded_data: image_bytes,
     clut_data: config.clut_data.clone(),
     use_transparency: config.use_transparency,
