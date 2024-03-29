@@ -1,6 +1,7 @@
-use std::u32;
+use std::{fs::File, io::BufWriter, u32};
 
-use image::{ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgba, imageops::FilterType};
+use gif::{Frame, Encoder, Repeat};
 
 const dequantizer_array: [u8; 16] = [
     0, 1, 4, 9, 16, 27, 44, 79, 128, 177, 212, 229, 240, 247, 252, 255,
@@ -197,4 +198,20 @@ pub fn decode_rle_image(config: RleImageConfig) -> ImageBuffer<Rgba<u8>, Vec<u8>
     use_lower_indexes: false,
   };
   decode_clut7_image(clut_config)
+}
+
+pub fn create_gif(images: Vec<ImageBuffer<Rgba<u8>, Vec<u8>>>, path: &str, width: u16, height: u16) -> Result<(), Box<dyn std::error::Error>> {
+    let mut image_output = File::create(path)?;
+    let mut encoder = Encoder::new(BufWriter::new(&mut image_output), width, height, &[])?;
+    encoder.set_repeat(Repeat::Infinite)?;
+
+    for image in images {
+        let resized = image::imageops::resize(&image, width.into(), height.into(), FilterType::Nearest);
+        
+        let mut frame = Frame::from_rgba_speed(width, height, &mut resized.into_raw(), 10);
+        frame.delay = 10; // Set the delay between frames (in 1/100th of a second)
+        encoder.write_frame(&frame)?;
+    }
+
+    Ok(())
 }

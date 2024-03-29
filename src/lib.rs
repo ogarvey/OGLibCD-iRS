@@ -10,12 +10,13 @@ mod data;
 mod helpers;
 
 use data::cdi_file::CdiFile;
+use image::{ImageBuffer, Rgba};
 use std::fs::File;
 use std::io::prelude::*;
 
 use crate::data::cdi_sector::CdiSector;
 use crate::helpers::color_helpers::{read_clut_banks, read_unindexed_palette, write_palette};
-use crate::helpers::image_format_helpers::{decode_clut7_image, decode_dyuv_image, decode_rle_image, Clut7Config, DyuvImageConfig, RleImageConfig};
+use crate::helpers::image_format_helpers::{create_gif, decode_clut7_image, decode_dyuv_image, decode_rle_image, Clut7Config, DyuvImageConfig, RleImageConfig};
 
 // test creating a cdifile
 #[test]
@@ -152,4 +153,58 @@ fn test_rle_image() {
     let image = decode_rle_image(rle_image);
     assert_ne!(image.len(), 0);
     image.save("C:/Dev/Projects/Gaming/CD-i/FILES/rle_test.png").unwrap();
+}
+
+#[test]
+fn test_gif_output() {
+    let file = CdiFile::new(
+        "C:/Dev/Projects/Gaming/CD-i/Disc Images/Extracted/Plunderball/Intro.rtr"
+            .to_string(),
+    );
+
+    let sectors: Vec<&CdiSector> = file.get_video_sectors();
+    
+    let palette_sector_1 = file.get_data_sectors().iter().find(|s| s.sector_index() == 269).unwrap().get_sector_data_by_type();
+    let palette_sector_2 = file.get_data_sectors().iter().find(|s| s.sector_index() == 1280).unwrap().get_sector_data_by_type();
+    // get the palette data from the first 384 bytes
+    let palette_data_1: Vec<u8> = palette_sector_1.iter().skip(4).take(384).cloned().collect();
+    let palette_data_2: Vec<u8> = palette_sector_2.iter().skip(4).take(384).cloned().collect();
+
+    let unindexed_palette_1 = read_unindexed_palette(&palette_data_1);
+    let unindexed_palette_2 = read_unindexed_palette(&palette_data_2);
+    assert_eq!(unindexed_palette_1.len(), 128);
+    assert_eq!(unindexed_palette_2.len(), 128);
+
+    let rle_image_sectors: Vec<&CdiSector> = sectors.iter().filter(|s| s.coding_info().video_string()== "RL7").cloned().collect();
+    
+    let mut images: Vec<ImageBuffer<Rgba<u8>, Vec<u8>>> = Vec::new();
+    let mut byte_groups = Vec::new();
+    
+    for (index, sector) in rle_image_sectors.iter().enumerate() {
+        let rle_data: Vec<u8> = sector.get_sector_data_by_type();
+        byte_groups.push(rle_data);
+
+        if sector.submode().is_trigger() {
+            let palette = if sector.sector_index() >= 1280 {
+                &unindexed_palette_2
+            } else {
+                &unindexed_palette_1
+            };
+            let data = byte_groups.iter().flatten().cloned().collect();
+            let rle_image = RleImageConfig {
+                encoded_data: data,
+                line_width: 384,
+                clut_data: palette.to_vec(),
+                use_transparency: false,
+                height: 240,
+            };
+            if let image = decode_rle_image(rle_image) {
+                images.push(image);
+            }
+            byte_groups.clear();
+        }
+    }
+
+    create_gif(images, "C:/Dev/Projects/Gaming/CD-i/FILES/plunderball_intro.gif",384,280).unwrap();
+    
 }
