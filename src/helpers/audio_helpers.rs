@@ -2,10 +2,10 @@ const K0: [i32;4] = [0, 240, 460, 392];
 const K1: [i32;4] = [0, 0, -208, -220];
 
 fn limit_sample(sample: i32) -> i16 {
-    if sample > 32767 {
-        32767
-    } else if sample < -32768 {
-        -32768
+    if sample > i16::MAX as i32 {
+        i16::MAX
+    } else if sample < i16::MIN as i32 {
+        i16::MIN
     } else {
         sample as i16
     }
@@ -72,11 +72,8 @@ fn decode_level_a_sound_group(stereo: bool, data: &[u8], left: &mut Vec<i16>, ri
         }
     }
 
-    // Call DecodeADPCM function with appropriate parameters
-    index = decode_adpcm(4, 8, &sd.iter().map(|x| x.as_ref()).collect::<Vec<_>>(), &range, &filter, stereo, left, right);
+    decode_adpcm(4, 8, &sd.iter().map(|x| x.as_ref()).collect::<Vec<_>>(), &range, &filter, stereo, left, right)
 
-    // Return the updated index
-    index
 }
 
 fn decode_level_bc_sound_group(stereo: bool, data: &[u8], left: &mut Vec<i16>, right: &mut Vec<i16>) -> u8 {

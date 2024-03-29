@@ -1,29 +1,25 @@
-use image::{ImageBuffer, Rgba, ImageFormat};
+use image::{ImageBuffer, ImageFormat, Rgba};
 
 pub fn read_unindexed_palette(data: &[u8]) -> Vec<Rgba<u8>> {
     let mut colors = Vec::new();
     let length = data.len();
-    
+
     for i in (0..length).step_by(3) {
-        if i + 2 <= length {
-            let color = Rgba([data[i ], data[i + 1], data[i + 2], 255]);
-            colors.push(color);
-        }
+        let color = Rgba([data[i], data[i + 1], data[i + 2], 255]);
+        colors.push(color);
     }
-    
+
     colors
 }
 pub fn read_indexed_palette(data: &[u8]) -> Vec<Rgba<u8>> {
     let mut colors = Vec::new();
     let length = data.len();
-    
+
     for i in (0..length).step_by(4) {
-        if i + 3 < length {
-            let color = Rgba([data[i + 1], data[i + 2], data[i + 3], 255]);
-            colors.push(color);
-        }
+        let color = Rgba([data[i + 1], data[i + 2], data[i + 3], 255]);
+        colors.push(color);
     }
-    
+
     colors
 }
 
@@ -31,19 +27,23 @@ pub fn read_clut_banks(data: &[u8], count: u8) -> Vec<Rgba<u8>> {
     let mut clut_bank_colors = Vec::new();
     let length = data.len();
     let bank_length = 0x100;
-    
+
     for i in 0..count as usize {
-        let mut colors = Vec::new();
-        for j in (4..bank_length+4).step_by(4) {
-            if (i*bank_length + (i*4)) + j + 3 < length {
-                let color = Rgba([data[(i*bank_length + (i*4)) + j + 1], data[(i*bank_length + (i*4)) + j + 2], data[(i*bank_length + (i*4)) + j + 3], 255]);
-                colors.push(color);
-                println!("{:?}", color);
+        for j in (4..bank_length + 4).step_by(4) {
+            let index = i * bank_length + (i * 4);
+            if index + j + 3 < length {
+                let color = Rgba([
+                    data[index + j + 1],
+                    data[index + j + 2],
+                    data[index + j + 3],
+                    255,
+                ]);
+                clut_bank_colors.push(color);
+                println!("{color:?}");
             }
         }
-        clut_bank_colors.extend(colors);
     }
-    
+
     clut_bank_colors
 }
 
