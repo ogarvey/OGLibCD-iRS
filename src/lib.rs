@@ -15,7 +15,7 @@ use std::io::prelude::*;
 
 use crate::data::cdi_sector::CdiSector;
 use crate::helpers::color_helpers::{read_clut_banks, read_unindexed_palette, write_palette};
-use crate::helpers::image_format_helpers::{decode_clut7_image, decode_dyuv_image, Clut7Config, DyuvImageConfig};
+use crate::helpers::image_format_helpers::{decode_clut7_image, decode_dyuv_image, decode_rle_image, Clut7Config, DyuvImageConfig, RleImageConfig};
 
 // test creating a cdifile
 #[test]
@@ -119,4 +119,37 @@ fn test_clut7_image() {
     let image = decode_clut7_image(clut_image);
     assert_ne!(image.len(), 0);
     image.save("C:/Dev/Projects/Gaming/CD-i/FILES/clut7_test.png").unwrap();
+}
+
+#[test]
+fn test_rle_image() {
+    let file = CdiFile::new(
+        "C:/Dev/Projects/Gaming/CD-i/Hotel Mario/L1_av.rtf"
+            .to_string(),
+    );
+
+    let sectors: Vec<&CdiSector> = file.get_video_sectors();
+    
+    let palette_sector = file.get_data_sectors().iter().find(|s| s.sector_index() == 9).unwrap().get_sector_data_by_type();
+    // get the palette data from the first 384 bytes
+    let palette_data: Vec<u8> = palette_sector.iter().take(384).cloned().collect();
+
+    let unindexed_palette = read_unindexed_palette(&palette_data);
+    assert_eq!(unindexed_palette.len(), 128);
+
+    let rle_image_sectors: Vec<&CdiSector> = sectors.iter().filter(|s| s.coding_info().video_string()== "RL7").take(7).cloned().collect();
+
+    let rle_data: Vec<u8> = rle_image_sectors.iter().map(|s| s.get_sector_data_by_type()).flatten().collect();
+
+    let rle_image = RleImageConfig {
+        encoded_data: rle_data,
+        line_width: 384,
+        clut_data: unindexed_palette,
+        use_transparency: false,
+        height: 280,
+    };
+
+    let image = decode_rle_image(rle_image);
+    assert_ne!(image.len(), 0);
+    image.save("C:/Dev/Projects/Gaming/CD-i/FILES/rle_test.png").unwrap();
 }
